@@ -118,14 +118,14 @@ BEGIN TRANSACTION;
 UPDATE system SET longdesc='\\
 The image contains only a RoundCube. For a full-fledged mail server, \\
 please use the 'postfix' image. \\
-\
+\\
 RoundCube Webmail is a browser-based multilingual IMAP client with an \\
 application-like user interface. It provides full functionality you \\
 expect from an e-mail client, including MIME support, address book, \\
 folder manipulation and message filters. RoundCube Webmail is written in \\
 PHP and requires the MySQL database. The user interface is fully \\
 skinnable using XHTML and CSS 2. \\
-WWW: https://roundcube.net/
+WWW: https://roundcube.net/ \\
 ';
 COMMIT;
 EOF
