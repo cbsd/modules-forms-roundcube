@@ -1,0 +1,218 @@
+timezone::timezone: #timezone#
+
+roundcube::db_type: mysql
+roundcube::db_name: roundcubemail
+roundcube::db_host: 127.0.0.1
+roundcube::db_username: roundcube
+roundcube::db_password: #db_roundcube_password#
+
+roundcube::options_hash:
+  product_name: #roundcube_product_name#
+  skin: #roundcube_skin#
+  support_url: ''
+  default_host: #roundcube_default_host#
+  smtp_server: #roundcube_smtp_server#
+  smtp_port: #roundcube_smtp_port#
+  smtp_user: "#roundcube_smtp_user#"
+  smtp_pass: "#roundcube_smtp_pass#"
+  des_key: "#roundcube_des_key#"
+
+roundcube::plugins:
+  - archive
+  - zipdownload
+
+# Roudcub for 8.0, not for 8.1: 2022-09
+php::globals:
+  php_version: 8.0
+
+php::ensure: installed
+php::manage_repos: true
+php::package_prefix: php80-
+php::fpm: true
+php::dev: true
+php::composer: true
+php::pear: false
+php::phpunit: false
+php::fpm::config::log_level: error
+php::composer::auto_update: true
+php::settings:
+  PHP/error_log: /var/log/nginx/php.err
+  PHP/user_ini.cache_ttl: 900
+  PHP/realpath_cache_size: 1m
+  PHP/realpath_cache_ttl: 900
+  PHP/memory_limit: #php_memory_limit#
+  PHP/max_input_time: #php_max_input_time#
+  PHP/post_max_size: #php_post_max_size#
+  PHP/upload_max_filesize: #php_upload_max_filesize#
+  PHP/always_populate_raw_post_data: '-1'
+  PHP/session.auto_start: 0
+  PHP/max_execution_time: #php_max_execution_time#
+  Date/date.timezone: #timezone#
+  opcache/opcache.enable: 1
+  opcache/opcache.enable_cli: 1
+  opcache/opcache.memory_consumption: #php_opcache_memory_consumption#
+
+php::cli::settings:
+  PHP/memory_limit: 512M
+  PHP/max_input_time: 300
+  PHP/post_max_size: 32M
+  PHP/upload_max_filesize: 32M
+  PHP/always_populate_raw_post_data: '-1'
+  PHP/session.auto_start: 0
+  PHP/max_execution_time: 0
+php::fpm::settings:
+  PHP/short_open_tag: 'On'
+php::fpm::pools:
+  www:
+    listen: /tmp/php-fpm.sock
+    user: www
+    group: www
+    listen_owner: www
+    listen_group: www
+    pm: static
+    pm_max_children: #fpm_max_children#
+    pm_start_servers:
+    pm_min_spare_servers:
+    pm_max_spare_servers:
+    request_slowlog_timeout: 15s
+    slowlog: /var/log/phpfpm.log.slow
+    chdir: /
+
+php::extensions:
+  opcache: {}
+  exif: {}
+  fileinfo: {}
+  intl: {}
+  mbstring: {}
+  pdo_mysql: {}
+  zip: {}
+
+nginx::events_use: kqueue
+nginx::confd_purge: true
+nginx::daemon_user: www
+nginx::gzip: 'on'
+nginx::gzip_buffers: '16 8k'
+nginx::gzip_comp_level: '4'
+nginx::gzip_disable: 'msie6'
+nginx::gzip_http_version: '1.1'
+nginx::gzip_proxied: 'any'
+#nginx::gzip_types: 'text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript application/javascript image/svg+xml'
+nginx::gzip_vary: 'on'
+nginx::server_tokens: 'off'
+
+nginx::worker_processes: #nginx_worker_processes#
+nginx::worker_rlimit_nofile: 10240
+nginx::error_log: /var/log/nginx/nginx.err
+nginx::nginx_error_log_severity: error
+nginx::pid: /var/run/nginx.pid
+
+#nginx::sendfile: 'on'
+#nginx::server_tokens: 'on'
+#nginx::spdy2: 'off'
+nginx::http2: 'on'
+
+nginx::keepalive_timeout: 120
+
+nginx::send_timeout: 60
+nginx::client_body_timeout: 60
+nginx::client_header_timeout: 60
+nginx::client_max_body_size: 1m
+nginx::server_names_hash_max_size: 1000
+nginx::server_names_hash_bucket_size:  512
+nginx::types_hash_max_size: 2048
+
+nginx::nginx_upstreams:
+  'phpfpm':
+    ensure: present
+    members:
+      'phpsock':
+        server: unix:/tmp/php-fpm.sock
+
+nginx::nginx_servers:
+  'roundcube':
+    server_name:
+      - _
+    #v6only
+#    listen_ip: '[::]'
+    http2: 'on'
+    ipv6_enable: #nginx_ipv6_enable#
+    ssl_redirect: false
+    ssl: false
+    use_default_location: false
+    www_root: '/usr/local/www/roundcube'
+    add_header:
+      Referrer-Policy: origin always
+      X-Content-Type-Options: nosniff always
+      X-XSS-Protection: 1; mode=block always
+    index_files:
+      - index.php
+
+nginx::nginx_locations:
+  'php':
+    location: '~ \.php$'
+    priority: 402
+    server: roundcube
+    www_root: /usr/local/www/roundcube
+    add_header:
+      HTTP_PROXY: ""
+    fastcgi: unix:/tmp/php-fpm.sock
+  'static-deny':
+    location: '~ ^/(README.md|INSTALL|LICENSE|CHANGELOG|UPGRADING)$'
+    server: roundcube
+    location_cfg_append:
+      deny: all
+      return: 403
+  'dir-deny':
+    location: '~ ^/(config|temp|logs)/'
+    server: roundcube
+    location_cfg_append:
+      deny: all
+      return: 404
+  'misc-deny':
+    location: '~ /\.'
+    server: roundcube
+    location_cfg_append:
+      deny: all
+      return: 403
+  'root':
+    location: '/'
+    priority: 410
+    server: roundcube
+    location_custom_cfg:
+      try_files: '$uri $uri/ /index.php?q=$uri&$args'
+    index_files:
+     - index.php
+
+mysql::client::package_name: databases/mysql#mysql_ver#-client
+
+profiles::db::mysql::globals:
+  package_name: 'databases/mysql#mysql_ver#-server'
+  create_root_my_cnf: false
+  remove_default_accounts: true
+  restart: true
+
+profiles::db::mysql::options:
+  client:
+    port: #port#
+    socket: #socket#
+  mysqld:
+    socket: #socket#
+    bind-address: #bind_address#
+    skip-networking: false
+    expire_logs_days: #expire_logs_days#
+    key_buffer_size: #key_buffer_size#
+    max_allowed_packet: #max_allowed_packet#
+    max_binlog_size: #max_binlog_size#
+    max_connections: #max_connections#
+    thread_cache_size: #thread_cache_size#
+    thread_stack: #thread_stack#
+    sort_buffer_size: #sort_buffer_size#
+
+
+profiles::db::mysql::db:
+  'roundcubemail':
+    user: 'roundcube'
+    password: '#db_roundcube_password#'
+    host: '%{::ipaddress}'
+    grant:
+      - ALL
