@@ -17,7 +17,7 @@ cat <<EOF
   class { 'nginx': }
   class { 'php': }
   class { 'profiles::db::mysql': }
-  class { 'profile::package': }
+  class { 'roundcube': }
 EOF
 }
 
