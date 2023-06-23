@@ -117,7 +117,7 @@ ${SQLITE3_CMD} ${FORM_PATH}/${HELPER}.sqlite << EOF
 BEGIN TRANSACTION;
 UPDATE system SET longdesc='\\
 The image contains only a RoundCube. For a full-fledged mail server, \\
-please use the 'postfix' image. \\
+please use the "postfix" image. \\
 \\
 RoundCube Webmail is a browser-based multilingual IMAP client with an \\
 application-like user interface. It provides full functionality you \\
